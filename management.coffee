@@ -1,4 +1,5 @@
 validate = require('json-schema').validate
+cfile = new require './fileops.coffee'
 tunnelstatus = ""
 dbmgmt =
     main: require('dirty') '/tmp/mgmttunnel.db'
@@ -38,21 +39,6 @@ tunnelSchema =
         return @next new Error "Invalid schema posting!: #{result.errors}" unless result.valid
         @next()
 
-    createFile = (filename) ->
-        try
-            dir = path.dirname filename
-            unless path.existsSync dir
-                console.log 'no path exists'
-                exec "mkdir -p #{dir}", (error, stdout, stderr) =>
-                    unless error
-                        console.log 'created path'
-                        exec "touch #{filename}"
-            else
-                console.log 'path exists'
-                exec "touch #{filename}"
-            return {result: success}
-        catch err
-            return new Error "Unable to write configuration file into #{filename}"
 
     generatevpnConfig = ->
         for key, val of @body
@@ -69,8 +55,6 @@ tunnelSchema =
         console.log "config: " + config
         return config
 
-    updateConfigFile = (config, filename) ->
-        fs.writeFileSync filename, config
 
     @get  '/management/activation/action' : ->
         console.log "looking to issue activation #{@body.command}"
@@ -83,12 +67,14 @@ tunnelSchema =
 
     @post '/management/tunnel', validateschema,  ->
         filename = "/config/management/openvpn/client.conf"
-        result = createFile(filename)
-        return result if Error
+        cfile.createFile filename, (result) ->
+            return result if result instanceof Error
 
         config = generatevpnConfig()
 
-        updateConfigFile(config, filename)
+        cfile.updateFile config, filename, (result) ->
+            return result if result instanceof Error
+
         dbmgmt.main.set "mgmt-tunnel", @body, ->
             console.log "mgmt tunnel configuration saved"
         tunnel-status = "configured"

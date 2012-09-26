@@ -25,21 +25,6 @@ networkstatus = ''
         return @next new Error "Invalid service posting!: #{result.errors}" unless result.valid
         @next()
 
-    createFileNwk = (filename) ->
-        try
-            console.log "write network config to #{filename}..."
-            dir = path.dirname filename
-            unless path.existsSync dir
-                exec "mkdir -p #{dir}", (error, stdout, stderr) =>
-                    unless error
-                        #console.log 'created path'
-                        exec "touch #{filename}"
-            else
-                #console.log "path exists"
-                exec "touch #{filename}"
-            return {"result":"success"}
-        catch err
-            return new Error "Unable to write network configuration into #{filename}!"
 
     generateNwkConfig = (body) ->
         config = ''
@@ -90,18 +75,14 @@ networkstatus = ''
                 
         
         return {"result":"success"}
-    updateConfigFileNwk = (config, filename) ->
-        fs.writeFileSync filename, config
 
     @post '/network/interfaces', validateschemaNwk,  ->
         filename = "/etc/network/interfaces.tmp"
-        #result = createFileNwk(filename)
-        #return result if Error  
-        createFileNwk(filename)
+        cfile.createFile(filename)
         config = ''
         config = generateNwkConfig(@body)
 
-        updateConfigFileNwk(config, filename)
+        cfile.updateFile(config, filename)
         writeNwkConfigDb(@body)
         @send {"result":"success"}
 
