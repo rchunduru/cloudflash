@@ -1,6 +1,7 @@
 validate = require('json-schema').validate
 cfile = new require './fileops.coffee'
 tunnelstatus = ""
+tunnel-pid = ''
 dbmgmt =
     main: require('dirty') '/tmp/mgmttunnel.db'
 
@@ -85,11 +86,25 @@ tunnelSchema =
         return {"status": "#{tunnel-status}"}
 
 
-    @post '/management/tunnel/action' : ->
-        switch @body.command
-            when "start", "stop", "restart", "sync"
-                exec "svcs mgmttunnel #{@body.command}", (error, stdout, stderr) =>
-                    return @next new Error "Unable to perform requested action!" if error
-                    @send {result:true}
-            else return @next new Error "Invalid action, must specify 'command' (start|stop|restart|sync)"
+    @post '/management/tunnel/sync' : ->
+
+        #fetch tunnel pid and then do the following
+        cfile.readFile filename, (result) ->
+            @send new Error result if result instanceof Error
+            tunnel-pid =  result
+            exec "kill -9 #{tunnel-pid}", (error, stdout, stderr) =>
+                console.log stderr
+                return @next new Error "Unable to perform requested action!" if error
+                tunnel-status = 'up'
+                @send {result:true}
+
+    @post '/system/:id/config/*' : ->
+        # this is a req from activation script in CPE to fetch init config.
+        activate = new require './activation.coffee'
+        activate.fetchInitConfig "#{@body.url}", "#{@body.method}", "#{@body.body}" , (statusCode, respString) ->
+            if statusCode == 200
+                @send respString
+            else
+                @send new Error respString
+
 

@@ -25,6 +25,16 @@ module.exports = class fileops
             callback ({result:success})
         else
             console.log 'File does not exist'
-            err = new Error "File does not exist"
-            callback (err)
+            error = new Error "File does not exist"
+            callback (error)
+
+    readFile = (filename, callback) ->
+        @fileExists filename, (result) ->
+            if result instanceof Error
+                callback (result)
+            else
+                buf = fs.readFileSync filename, 'utf-8'
+                callback(buf)
+
+       
      
