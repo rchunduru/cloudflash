@@ -1,10 +1,10 @@
 # validation is used by other modules
 validate = require('json-schema').validate
 
-@db = db = require('dirty') '/tmp/dhcp.db'
+@db = db = require('dirty') '/tmp/cloudflash.db'
 
 db.on 'load', ->
-    console.log 'loaded dhcp.db'
+    console.log 'loaded cloudflash.db'
     db.forEach (key,val) ->
         console.log 'found ' + key
 
@@ -248,3 +248,8 @@ db.on 'load', ->
        result = writeConfig(config)
        console.log result
        @send result
+
+
+    @get '/network/:id/dhcp', loadService, ->
+        console.log @request.service
+        @send @request.service
