@@ -17,6 +17,7 @@
     @include 'webproxy'
 #    @include 'openvpnlog'
 #    @include 'firewall'
+    @include 'dhcp' 
 
     @get '/test': ->
         @render index: {title: 'cloudflash', layout: no}
