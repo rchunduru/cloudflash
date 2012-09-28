@@ -129,12 +129,11 @@ class vpnlib
         callback (result)
 
     validateOpenvpnClient: ->
-        @validateOpenvpn clientschema, (result) ->
+        @validateOpenvpn clientSchema, (result) ->
             return new Error "Invalid service openvpn posting!: #{result.errors}" unless result.valid
             return result.valid
 
     validateOpenvpnServer: ->
-        console.log @body
         console.log 'ravi in validate openvpn server'
         @validateOpenvpn serverSchema, (result) ->
             return new Error "Invalid service openvpn posting!: #{result.errors}" unless result.valid
@@ -149,7 +148,7 @@ class vpnlib
         else
             return @next result
 
-    configurevpn: (filename, callback) ->
+    configurevpn: (filename, callback) ->        
         service = @request.service
         config = ''
         for key, val of @body
@@ -169,19 +168,23 @@ class vpnlib
         fileops.createFile filename, (result) ->
             return new Error "Unable to create configuration file #{filename}!" if result instanceof Error
             fileops.updateFile filename, config
-            exec "touch /config/#{service.description.name}/on"
-            try
-                db.main.set id, @body, ->
-                    console.log "#{id} added to OpenVPN service configuration"
-                callback({result:true})
-            catch err
-                console.log err
-                callback(err)
+            if @request # added by geetha to support /management/tunnel endpoint
+              exec "touch /config/#{service.description.name}/on"
+              try
+                  db.main.set id, @body, ->
+                      console.log "#{id} added to OpenVPN service configuration"
+                  callback({result:true})
+              catch err
+                  console.log err
+                  callback(err)
+            else
+              callback({result:true})
 
-    configClient: (filename, callback) ->
-        if filename = ''
-            filename = "/config/openvpn/client.conf"
-        @configurevpn filename , (res) ->
+    configClient: (filename, callback) -> 
+        # commented below 2 lines to support openvpn client       
+        #if filename = ''
+        #    filename = "/config/openvpn/client.conf"
+        @configurevpn filename , (res) ->            
             console.log res
             callback(res)
    
@@ -196,10 +199,10 @@ class vpnlib
         console.log 'performing schema validation on incoming user validation JSON'
         result = validate @body, userschema
         console.log result
-        return @next new Error "Invalid service openvpn posting!: #{result.errors}" unless result.valid
-        @next()
+        return new Error "Invalid service openvpn posting!: #{result.errors}" unless result.valid
+        return result.valid
 
-    addUser: ->
+    addUser: (callback) ->
         service = @request.service
         config = ''
         for key, val of @body
@@ -214,45 +217,54 @@ class vpnlib
         else
             filename = "/config/openvpn/ccd/#{@body.commonname}"
 
+        id = @body.id
+        body = @body
         fileops.createFile filename, (err) ->
+            return new Error "Unable to create configuration file #{filename}!" if err instanceof Error
             fileops.updateFile filename, config
-
             try
-                exec "svcs #{service.description.name} sync"
+                #exec "svcs #{service.description.name} sync"
 
-                db.user.set @body.id, @body, ->
-                    console.log "#{@body.email} added to OpenVPN service configuration"
-                    console.log @body
-                @send { result: true }
+                db.user.set id, body, ->
+                    console.log "#{id} added to OpenVPN service configuration"
+                    console.log body
+                callback({result: true })
             catch err
-                @next new Error "Unable to write configuration into #{filename}!"
+                callback(err)
 
-    delUser = ->
+    delUser: (callback) ->
         console.log @params
         userid = @params.user
         entry = db.user.get userid
-
+        console.log " userid:" + userid + entry.email
         try
             throw new Error "user does not exist!" unless entry
 
             filename = "/config/openvpn/ccd/#{entry.email}"
             console.log "removing user config on #{filename}..."
             fileops.fileExists filename, (exists) ->
-                throw new Error "user is already removed!" unless exists
+                if not exists
+                    console.log 'file removed already'
+                    err = new Error "user is already removed!"
+                    callback(err)
+                else
+                    console.log 'remove the file'
+                    fileops.removeFile filename, (err) ->
+                        if err
+                            callback(err)
+                        else
+                            console.log 'removed file'
 
-                fileops.removeFile filename, (err) ->
-                    throw err if err
-
-                    db.user.rm userid, ->
-                        console.log "removed VPN user ID: #{userid}"
-                        @send { deleted: true }
+                        db.user.rm userid, ->
+                            console.log "removed VPN user ID: #{userid}"
+                        callback({ deleted: true })
         catch err
-            @next new Error "Unable to remove user ID: #{userid} due to #{err}"
+            callback(err)
 
-    getInfo = (callback) ->
+    getInfo: (port, filename, id, callback) ->
         console.log 'in getInfo'
         res =
-            id: @request.service.id
+            id: id
             users: []
             connections: []
 
@@ -303,7 +315,7 @@ class vpnlib
 
         # OPENVPN MGMT API v1
         net = require 'net'
-        conn = net.connect 2020, '127.0.0.1', ->
+        conn = net.connect port, '127.0.0.1', ->
             console.log 'connection to openvpn mgmt successful!'
             response = ''
             @setEncoding 'ascii'
@@ -331,10 +343,11 @@ class vpnlib
         # When we CANNOT make a connection to OPENVPN MGMT port, we fallback to checking file
         conn.on 'error', (error) ->
             console.log error
-            statusfile = "/var/log/server-status.log" # hard-coded for now...
+            statusfile = filename # hard-coded for now...
 
             console.log "failling back to processing #{statusfile}..."
             #statusfile = "openvpn-status.log" # hard-coded for now...
+            fs = require 'fs'
             stream = fs.createReadStream statusfile, encoding: 'utf8'
             stream.on 'open', ->
                 console.log "sending #{statusfile} to lazy status..."

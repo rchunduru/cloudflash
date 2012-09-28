@@ -14,26 +14,41 @@ cfile = new require './fileops.coffee'
             return @next result
 
     @post '/services/:id/openvpn/client', loadService, ->
-        vpn = new vpnlib @request, @send, @params, @body, @next
+        vpn = new vpnlib @request, @send, @params, @body, @next        
         result = vpn.validateOpenvpnClient()
-        @send result if result instanceof Error
-        vpn.configClient(res) ->
-            vpn.send res
+        if result instanceof Error
+            return @next result
+        else
+            console.log 'schema is good'
+            vpn.configClient "/config/openvpn/client.conf", (res) ->
+                vpn.send res
 
     @post '/services/:id/openvpn/server', loadService, ->
         vpn = new vpnlib @request, @send, @params, @body, @next
+        filename = '/config/openvpn/server.conf'
         result = vpn.validateOpenvpnServer()
-        @send result if result instanceof Error
-        vpn.configServer (res) ->
-            vpn.send res
+        if result instanceof Error
+            return @next result
+        else
+            vpn.configServer (res) ->
+                vpn.send res
     
-    #@post '/services/:id/openvpn/server', vpn.loadService, vpn.validateOpenvpnServer, vpn.configServer
+    @post '/services/:id/openvpn/users', loadService, ->
+        vpn = new vpnlib @request, @send, @params, @body, @next
+        result = vpn.validateUser()
+        if result instanceof Error
+            return @next result
+        else
+            vpn.addUser (res) ->
+                vpn.send res
 
-    #@post '/services/:id/openvpn/users', vpn.loadService, vpn.validateUser, vpn.adduser
+    @del '/services/:id/openvpn/users/:user', loadService, ->
+        vpn = new vpnlib @request, @send, @params, @body, @next
+        vpn.delUser (res) ->
+            vpn.send res
 
-    #@del '/services/:id/openvpn/users/:user', vpn.loadService, vpn.deluser
-
+            
     @get '/services/:id/openvpn', loadService, ->
-        @send 'hi'
-        #vpn = new vpnlib @request, @send, @params, @body, @next
-        vpn.getInfo
+        vpn = new vpnlib @request, @send, @params, @body, @next
+        vpn.getInfo 2020,"/var/log/server-status.log", @request.service.id, (result) ->
+            vpn.send result
