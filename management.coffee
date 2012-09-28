@@ -1,7 +1,6 @@
 cfile = new require './fileops.coffee'
 vpnlib = new require './openvpnlib.coffee'
-tunnelstatus = ''
-tunnel-pid = ''
+exec = require('child_process').exec
 
 @include = ->
     @get  '/management/activation/action' : ->
@@ -16,29 +15,48 @@ tunnel-pid = ''
                 console.log ''
             else return @next new Error "Invalid activation action specified, must be (start|restart)"
 
-    @post '/management/tunnel', vpnlib.validateschema, vpnlib.configClient ("/etc/network/management.conf")
+    @post '/management/tunnel': ->
+        vpn = new vpnlib @request, @send, @params, @body, @next
+        result = vpn.validateOpenvpnClient()
+        if result instanceof Error
+            return @next result
+        else
+            console.log 'schema is good'
+            vpn.configClient "/etc/network/management.conf",(res) ->
+                vpn.send res
 
-    @get '/management/tunnel', vpnlib.getInfo
+    @get '/management/tunnel': ->
+        vpn = new vpnlib @request, @send, @params, @body, @next
+        #change the port and filename for management tunnel
+        vpn.getInfo 2020,"/var/log/server-status.log","management", (result) ->
+            vpn.send result
 
     @post '/management/tunnel/sync' : ->
-
+        tunnelpid = ''
+        zappasend = @send
+        zappanext = @next
         #fetch tunnel pid and then do the following
-        cfile.readFile filename, (result) ->
-            @send new Error result if result instanceof Error
-            tunnel-pid =  result
-            exec "kill -9 #{tunnel-pid}", (error, stdout, stderr) =>
-                console.log stderr
-                return @next new Error "Unable to perform requested action!" if error
-                tunnelstatus = 'up'
-                @send {result:true}
+        cfile.readFile "/var/run/mgmt.pid", (result) ->
+            console.log 'after readfile' + result
+            throw new Error result if result instanceof Error
+            tunnelpid =  result
+            console.log 'tunnel pid is: ' + tunnelpid
+            exec "kill -9 #{tunnelpid}", (error, stdout, stderr) ->
+                console.log 'after sending command' + error
+                if error
+                    zappanext new Error "Unable to perform requested action!"
+                else
+                    zappasend {result:true}
 
     @post '/system/:id/config/*' : ->
         # this is a req from activation script in CPE to fetch init config.
         activate = new require './activation.coffee'
+        zappasend = @send
+        zappanext = @next
         activate.fetchInitConfig "#{@body.url}", "#{@body.method}", "#{@body.body}" , (statusCode, respString) ->
             if statusCode == 200
-                @send respString
+                zappasend respString
             else
-                @send new Error respString
+                zappanext new Error respString
 
 

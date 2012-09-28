@@ -43,7 +43,8 @@ class fileops
             if result instanceof Error
                 callback(result)
             else
-                buf = fs.readFileSync filename, 'utf-8'
+                console.log 'reading the file'
+                buf = fs.readFileSync filename
                 callback(buf)
 
        
