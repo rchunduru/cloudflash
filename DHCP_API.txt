@@ -1,6 +1,243 @@
 list of DHCP API's
 -------------------
 
+Post DHCP Configuration
+------------------------
+
+Verb    URI                 Description
+POST    /network/dhcp       Update the DHCP udhcpd.conf file in VCG.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "start":"192.168.0.20",
+   "end":"192.168.0.254",
+   "interface":"eth0",
+   "max_leases":254,
+   "remaining":"yes",
+   "auto_time":7200,
+   "decline_time":3600,
+   "conflict_time":3600,
+   "offer_time":60,
+   "min_lease":60,
+   "lease_file":"/var/lib/misc/udhcpd.leases",
+   "pidfile":"/var/run/udhcpd.pid",
+   "notify_file":"dumpleases",
+   "siaddr":"192.168.0.22",
+   "sname":"zorak"
+}
+
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+
+Verb    URI                        Description
+POST    /network/dhcp/router       Update the DHCP udhcpd.conf file with router information.
+
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.10.2 192.168.10.3"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+
+Verb    URI                        Description
+POST    /network/dhcp/timesvr      Update the DHCP udhcpd.conf file with time server information.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.10.2"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+
+Verb    URI                        Description
+POST    /network/dhcp/namesvr      Update the DHCP udhcpd.conf file with name server information.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.10.2"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+
+Verb    URI                        Description
+POST    /network/dhcp/dns          Update the DHCP udhcpd.conf file with dns server information.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.100.1"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+Verb    URI                        Description
+POST    /network/dhcp/logsvr       Update the DHCP udhcpd.conf file with log server information.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.10.4"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+
+Verb    URI                        Description
+POST    /network/dhcp/cookiesvr    Update the DHCP udhcpd.conf file with cookie server information.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.10.5"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+
+Verb    URI                        Description
+POST    /network/dhcp/lprsvr       Update the DHCP udhcpd.conf file with lpr server information.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.10.6"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+
+Verb    URI                        Description
+POST    /network/dhcp/ntpsrv       Update the DHCP udhcpd.conf file with ntp server information.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.10.6"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+
+Verb    URI                        Description
+POST    /network/dhcp/wins         Update the DHCP udhcpd.conf file with win server information.
+
+On success it returns JSON data with config success.
+
+Example Request and Response
+
+Request JSON
+{
+   "address": "192.168.10.6"
+}
+
+Response JSON
+{"result":"success"}
+
+Upon error, error code 500 will be returned
+
+
+Describe DHCP Service
+----------------------
+Verb    URI                            Description
+GET     /services/service-id/dhcp      Show a DHCP service in VCG specified by service-ID
+
+
+Request Headers
+/network/cec43145-23cd-4c7a-85b2-0e97a5f0a741/dhcp
+
+
+Response JSON
+{
+    "id": "492e025d-2ae7-49e6-b27d-441ba3784ce3",
+    "description": {
+        "version": "1.0",
+        "name": "dhcp",
+        "family": "remote-access",
+        "pkgurl": "http://10.1.10.145/dhcp-0.0.1.deb",
+        "id": "7aeeb1a6-88ae-401b-95b6-c5d059b77db0"
+    },
+    "status": {
+        "installed": true,
+        "initialized": false,
+        "enabled": false,
+        "running": false,
+        "result": "/home/plee/hack.node/cloudflash\n"
+    }
+}
+
+
 Create DHCP service
 --------------------
 Verb    URI         Description
@@ -34,214 +271,6 @@ Response JSON
         "installed": true
     }
 }
-
-
-
-Post DHCP Configuration
-------------------------
-
-Verb    URI                 Description
-POST    /network/dhcp       Update the DHCP udhcpd.conf file in VCG.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "start":"192.168.0.20",
-   "end":"192.168.0.254",
-   "interface":"eth0",
-   "max_leases":254,
-   "remaining":"yes",
-   "auto_time":7200,
-   "decline_time":3600,
-   "conflict_time":3600,
-   "offer_time":60,
-   "min_lease":60,
-   "lease_file":"/var/lib/misc/udhcpd.leases",
-   "pidfile":"/var/run/udhcpd.pid",
-   "notify_file":"dumpleases",
-   "siaddr":"192.168.0.22",
-   "sname":"zorak"
-}
-
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-
-Verb    URI                        Description
-POST    /network/dhcp/router       Update the DHCP udhcpd.conf file with router information.
-
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.10.2 192.168.10.3"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-
-Verb    URI                        Description
-POST    /network/dhcp/timesvr      Update the DHCP udhcpd.conf file with time server information.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.10.2"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-
-Verb    URI                        Description
-POST    /network/dhcp/namesvr      Update the DHCP udhcpd.conf file with name server information.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.10.2"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-
-Verb    URI                        Description
-POST    /network/dhcp/dns          Update the DHCP udhcpd.conf file with dns server information.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.100.1"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-Verb    URI                        Description
-POST    /network/dhcp/logsvr       Update the DHCP udhcpd.conf file with log server information.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.10.4"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-
-Verb    URI                        Description
-POST    /network/dhcp/cookiesvr    Update the DHCP udhcpd.conf file with cookie server information.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.10.5"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-
-Verb    URI                        Description
-POST    /network/dhcp/lprsvr       Update the DHCP udhcpd.conf file with lpr server information.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.10.6"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-
-Verb    URI                        Description
-POST    /network/dhcp/ntpsrv       Update the DHCP udhcpd.conf file with ntp server information.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.10.6"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
-
-
-
-Verb    URI                        Description
-POST    /network/dhcp/wins         Update the DHCP udhcpd.conf file with win server information.
-
-On success it returns JSON data with config success.
-
-Example Request and Response
-
-Request JSON
-{
-   "address": "192.168.10.6"
-}
-
-Response JSON
-{ result: true }
-
-Upon error, error code 500 will be returned
 
 
 
