@@ -106,7 +106,7 @@ db.dhcp.on 'load', ->
         @next()
     
     # Function to create config file and write or append to the config file 
-    writeConfig = (config) ->
+    writeConfig = (config, id, body) ->
         console.log 'inside writeConfig'
         console.log "updating the dhcp config to #{filename}..."
         cfile.fileExists filename, (result) ->
@@ -118,26 +118,62 @@ db.dhcp.on 'load', ->
 
                cfile.updateFile filename, config, (result) ->
                   return result if result instanceof Error
-        return { "result": "success" }
+        try
+           db.dhcp.set id, body, ->
+              console.log "#{id} added to dhcp service configuration"
+              console.log body
+           return { "result": "success" }
+        catch err
+           return { "result" : "failed" }
+
 
     # Function to create config file and write to the config file
     addRouter = (config, filename, id, body, callback) ->
+        console.log 'inside addRouter'
         cfile.createFile filename, (result) ->
            return result if result instanceof Error
 
         cfile.updateFile filename, config, (result) ->
            return result if result instanceof Error
 
-         try
+        try
            db.dhcp.set id, body, ->
               console.log "#{id} added to dhcp service configuration"
               console.log body
            callback({result: true })
-         catch err
+        catch err
            callback(err)
-     
-    @post '/network/dhcp', validateDhcp, ->
-       console.log 'inside endpoint /network/dhcp'
+
+    # Function to delete config filename with given id
+    delRouter = (id, callback) ->
+        console.log 'inside delRouter'
+        entry = db.dhcp.get id 
+        try
+            throw new Error "id does not exist!" unless entry
+
+            filename = "/config/dhcp/#{entry.filename}"
+            console.log "removing config id on #{filename}..."
+            cfile.fileExists filename, (exists) ->
+                if not exists
+                    console.log 'file removed already'
+                    err = new Error "user is already removed!"
+                    callback(err)
+                else
+                    console.log 'remove the file'
+                    cfile.removeFile filename, (err) ->
+                        if err
+                            callback(err)
+                        else
+                            console.log 'removed file'
+
+                        db.dhcp.rm id, ->
+                            console.log "removed config id: #{id}"
+                        callback({ deleted: true })
+        catch err
+            callback(err)
+        
+    @post '/network/dhcp/subnet', validateDhcp, ->
+       console.log 'inside endpoint /network/dhcp/subnet'
        config = ''
        for key, val of @body
            switch (typeof val)
@@ -152,35 +188,47 @@ db.dhcp.on 'load', ->
            return result if result instanceof Error
        @send {"result":"success"}       
 
-#    @post '/network/dhcp/router', validateAddress, ->
-#       console.log "inside endpoint router"
-#       config = ''
-#       for key, val of @body
-#         switch (typeof val)
-#           when "string"
-#             config += 'option router' + ' ' + val + "\n"
-#       result = writeConfig(config)
-#       @send result
-
     @post '/network/dhcp/router', validateRouter, ->
-       console.log 'inside endpoint router'
+       console.log "inside endpoint router"
        config = ''
-       for key, val of @body
-            switch (typeof val)
-                when "object"
-                    if val instanceof Array
-                        for i in val
-                            config += "option router #{i}\n" if key is "address"
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option router' + ' ' + val + "\n"
        id = @body.id
        body = @body
+       result = writeConfig(config, id, body)
+       @send result
 
-       if @body.filename
-            filename = "/config/dhcp/#{@body.filename}"
-       else
-            filename = "/config/dhcp/filename"
-       addRouter config, filename, id, body, (result) ->
-            return result if result instanceof Error
-       @send { "result" : "success"}    
+#    @post '/network/dhcp/router', validateRouter, ->
+#       console.log 'inside endpoint router'
+#       config = ''
+#       for key, val of @body
+#            switch (typeof val)
+#                when "object"
+#                    if val instanceof Array
+#                        for i in val
+#                            config += "option router #{i}\n" if key is "address"
+#       id = @body.id
+#       body = @body
+#
+#       if @body.filename
+#            filename = "/config/dhcp/#{@body.filename}"
+#       else
+#            filename = "/config/dhcp/filename"
+ 
+#       addRouter config, filename, id, body, (result) ->
+#            return result if result instanceof Error
+#       @send { "result" : "success"}    
+
+#    @del '/network/dhcp/router/:id', ->
+#       console.log 'inside delete router endpoint'
+#       console.log @params
+#       id = @params.id
+#       delRouter id, (result) ->
+#            return result if result instanceof Error
+#       @send { "delete": "success"} 
+
 
     @post '/network/dhcp/timesvr', validateAddress, ->
        console.log "inside endpoint time server"
@@ -263,4 +311,41 @@ db.dhcp.on 'load', ->
        @send result
 
     @get '/network/:id/dhcp', loadService, ->
-        @send @request.service
+       @send @request.service
+
+    @del '/network/dhcp/:id/router', ->
+       console.log 'inside delete /network/dhcp/:id/router'
+       newconfig = ''
+       id = @params.id
+       entry = db.dhcp.get id
+       cfile.readFile filename, (result) ->
+            throw new Error result if result instanceof Error
+            for line in result.split '\n'
+                j = 0
+                flag = 0
+                while j < entry.address.length
+                    config = 'option router '
+                    config += entry.address[j]
+                    if line==config
+                       flag = 1
+                       j++
+                    else
+                       j++
+                if flag == 0
+                   newconfig += line + '\n'
+            cfile.removeFile filename, (err) ->
+                if err
+                   callback(err)
+                else
+                   console.log 'removed file'
+
+            db.dhcp.rm id, ->
+                console.log "removed config id: #{id}"
+
+            cfile.createFile filename, (result) ->
+                return result if result instanceof Error
+
+            cfile.updateFile filename, newconfig, (result) ->
+                return result if result instanceof Error
+       @send { "delete" : "success" }      
+
