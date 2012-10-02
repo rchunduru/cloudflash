@@ -11,6 +11,7 @@
 
     @include './lib/services'
     @include './lib/personality'
+    @include './lib/management'
 
     @get '/test': ->
         @render index: {title: 'cloudflash', layout: no}
