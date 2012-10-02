@@ -9,6 +9,7 @@
 
     @enable 'serve jquery', 'minify'
 
+    zappainclude = @include
     @include 'services'
     @include 'personality'
 
