@@ -12,6 +12,7 @@
     @include './lib/services'
     @include './lib/personality'
     @include './lib/management'
+    @include './lib/network'
 
     @get '/test': ->
         @render index: {title: 'cloudflash', layout: no}
