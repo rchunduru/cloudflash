@@ -1,7 +1,8 @@
 fs = require 'fs'
 validate = require('json-schema').validate
 cfile = new require './fileops.coffee'
-filename = "/etc/udhcpd.conf"
+filename = "/home/maltesh/udhcpd_test.conf"
+uuid = require('node-uuid')
 
 @db = db =
     dhcp: require('dirty') '/tmp/dhcp.db'
@@ -58,29 +59,18 @@ db.dhcp.on 'load', ->
             siaddr:             {"type":"string", "required":false}
             sname:              {"type":"string", "required":false}
             boot_file:          {"type":"string", "required":false}
-            subnet:             {"type":"string", "required":false}
-            domain:             {"type":"string", "required":false}
-            lease:              {"type":"number", "required":false}
+            option:             
+               items:           {"type":"string"}
 
     # addrschema for address validation
     addrschema = 
-        name: "address"
-        type: "object"
-        additionalProperties: false
-        properties:
-            address:             {"type":"string", "required":true}
-
-    routerschema = 
         name: "dhcp"
         type: "object"
         additionalProperties: false
         properties:
-            id:         { type: "string", required: true }
-            filename:   { type: "string", required: false}
+            optionparam:        {"type":"string", "required":"true"}
             address:
-                items:  { type: "string" }
-
-
+                items:          { type: "string" }
 
     # Function to validate the dhcp configuration with dhcpschema
     validateDhcp = ->
@@ -90,22 +80,15 @@ db.dhcp.on 'load', ->
         return @next new Error "Invalid service dhcp posting!: #{result.errors}" unless result.valid
         @next()
 
-    # Function to validate the dddress with addrschema
+    # Function to validate the address with routerschema
     validateAddress = ->
-        console.log 'performing addrschema validation on incoming service JSON'
-        result = validate @body, addrschema
-        console.log result
-        return @next new Error "Invalid address posting!: #{result.errors}" unless result.valid
-        @next()
-
-    validateRouter = ->
         console.log 'performing schema validation on incoming config validation JSON'
-        result = validate @body, routerschema
+        result = validate @body, addrschema
         console.log result
         return @next new Error "Invalid service dhcp posting!: #{result.errors}" unless result.valid
         @next()
     
-    # Function to create config file and write or append to the config file 
+    # writeConfig: Function to add/modify configuration and update the dhcp db with id 
     writeConfig = (config, id, body) ->
         console.log 'inside writeConfig'
         console.log "updating the dhcp config to #{filename}..."
@@ -121,210 +104,22 @@ db.dhcp.on 'load', ->
         try
            db.dhcp.set id, body, ->
               console.log "#{id} added to dhcp service configuration"
-              console.log body
            return { "result": "success" }
         catch err
            return { "result" : "failed" }
 
-
-    # Function to create config file and write to the config file
-    addRouter = (config, filename, id, body, callback) ->
-        console.log 'inside addRouter'
-        cfile.createFile filename, (result) ->
-           return result if result instanceof Error
-
-        cfile.updateFile filename, config, (result) ->
-           return result if result instanceof Error
-
-        try
-           db.dhcp.set id, body, ->
-              console.log "#{id} added to dhcp service configuration"
-              console.log body
-           callback({result: true })
-        catch err
-           callback(err)
-
-    # Function to delete config filename with given id
-    delRouter = (id, callback) ->
-        console.log 'inside delRouter'
-        entry = db.dhcp.get id 
-        try
-            throw new Error "id does not exist!" unless entry
-
-            filename = "/config/dhcp/#{entry.filename}"
-            console.log "removing config id on #{filename}..."
-            cfile.fileExists filename, (exists) ->
-                if not exists
-                    console.log 'file removed already'
-                    err = new Error "user is already removed!"
-                    callback(err)
-                else
-                    console.log 'remove the file'
-                    cfile.removeFile filename, (err) ->
-                        if err
-                            callback(err)
-                        else
-                            console.log 'removed file'
-
-                        db.dhcp.rm id, ->
-                            console.log "removed config id: #{id}"
-                        callback({ deleted: true })
-        catch err
-            callback(err)
-        
-    @post '/network/dhcp/subnet', validateDhcp, ->
-       console.log 'inside endpoint /network/dhcp/subnet'
-       config = ''
-       for key, val of @body
-           switch (typeof val)
-               when "number", "string"
-                   config += key + ' ' + val + "\n"
-               when "boolean"
-                   config += key + "\n"
-
-       cfile.createFile filename, (result) ->
-           return result if result instanceof Error
-       cfile.updateFile filename, config, (result) ->
-           return result if result instanceof Error
-       @send {"result":"success"}       
-
-    @post '/network/dhcp/router', validateRouter, ->
-       console.log "inside endpoint router"
-       config = ''
-       for key, val of @body.address
-         switch (typeof val)
-           when "string"
-             config += 'option router' + ' ' + val + "\n"
-       id = @body.id
-       body = @body
-       result = writeConfig(config, id, body)
-       @send result
-
-#    @post '/network/dhcp/router', validateRouter, ->
-#       console.log 'inside endpoint router'
-#       config = ''
-#       for key, val of @body
-#            switch (typeof val)
-#                when "object"
-#                    if val instanceof Array
-#                        for i in val
-#                            config += "option router #{i}\n" if key is "address"
-#       id = @body.id
-#       body = @body
-#
-#       if @body.filename
-#            filename = "/config/dhcp/#{@body.filename}"
-#       else
-#            filename = "/config/dhcp/filename"
- 
-#       addRouter config, filename, id, body, (result) ->
-#            return result if result instanceof Error
-#       @send { "result" : "success"}    
-
-#    @del '/network/dhcp/router/:id', ->
-#       console.log 'inside delete router endpoint'
-#       console.log @params
-#       id = @params.id
-#       delRouter id, (result) ->
-#            return result if result instanceof Error
-#       @send { "delete": "success"} 
-
-
-    @post '/network/dhcp/timesvr', validateAddress, ->
-       console.log "inside endpoint time server"
-       config = ''
-       for key, val of @body
-         switch (typeof val)
-           when "string"
-             config += 'option timesvr' + ' ' + val + "\n"
-       result = writeConfig(config)
-       @send result
- 
-    @post '/network/dhcp/namesvr', validateAddress, ->
-       console.log "inside endpoint name server"
-       config = ''
-       for key, val of @body
-         switch (typeof val)
-           when "string"
-             config += 'option namesvr' + ' ' + val + "\n"
-       result = writeConfig(config)
-       @send result
-
-    @post '/network/dhcp/dns', validateAddress, ->
-       console.log "inside endpoint dns"
-       config = ''
-       for key, val of @body
-         switch (typeof val)
-           when "string"
-             config += 'option dns' + ' ' + val + "\n"
-       result = writeConfig(config)
-       @send result
-
-    @post '/network/dhcp/logsvr', validateAddress, ->
-       console.log "inside endpoint log server"
-       config = ''
-       for key, val of @body
-         switch (typeof val)
-           when "string"
-             config += 'option logsvr' + ' ' + val + "\n"
-       result = writeConfig(config)
-       @send result
- 
-    @post '/network/dhcp/cookiesvr', validateAddress, ->
-       console.log "inside endpoint cookie server"
-       config = ''
-       for key, val of @body
-         switch (typeof val)
-           when "string"
-             config += 'option cookiesvr' + ' ' + val + "\n"
-       result = writeConfig(config)
-       @send result
-
-    @post '/network/dhcp/lprsvr', validateAddress, ->
-       console.log "inside endpoint lpr server"
-       config = ''
-       for key, val of @body
-         switch (typeof val)
-           when "string"
-             config += 'option lprsvr' + ' ' + val + "\n"
-       result = writeConfig(config)
-       @send result
-
-    @post '/network/dhcp/ntpsvr', validateAddress, ->
-       console.log "inside endpoint ntp server"
-       config = ''
-       for key, val of @body
-         switch (typeof val)
-           when "string"
-             config += 'option ntpsvr' + ' ' + val + "\n"
-       result = writeConfig(config)
-       @send result
-
-    @post '/network/dhcp/wins', validateAddress, ->
-       console.log "inside endpoint wins"
-       config = ''
-       for key, val of @body
-         switch (typeof val)
-           when "string"
-             config += 'option wins' + ' ' + val + "\n"
-       result = writeConfig(config)
-       @send result
-
-    @get '/network/:id/dhcp', loadService, ->
-       @send @request.service
-
-    @del '/network/dhcp/:id/router', ->
-       console.log 'inside delete /network/dhcp/:id/router'
-       newconfig = ''
-       id = @params.id
-       entry = db.dhcp.get id
-       cfile.readFile filename, (result) ->
+    # removeConfig: Function to remove configuration with given id
+    removeConfig = (id, optionvalue) ->
+        console.log 'inside removeConfig'
+        entry = db.dhcp.get id
+        newconfig = ''
+        cfile.readFile filename, (result) ->
             throw new Error result if result instanceof Error
             for line in result.split '\n'
                 j = 0
                 flag = 0
                 while j < entry.address.length
-                    config = 'option router '
+                    config = optionvalue
                     config += entry.address[j]
                     if line==config
                        flag = 1
@@ -333,19 +128,227 @@ db.dhcp.on 'load', ->
                        j++
                 if flag == 0
                    newconfig += line + '\n'
-            cfile.removeFile filename, (err) ->
-                if err
-                   callback(err)
-                else
-                   console.log 'removed file'
-
-            db.dhcp.rm id, ->
-                console.log "removed config id: #{id}"
+            try   
+               db.dhcp.rm id, ->
+                  console.log "removed config id: #{id}"
+            catch err
+               return { "deleted" : "failed"}
 
             cfile.createFile filename, (result) ->
                 return result if result instanceof Error
 
             cfile.updateFile filename, newconfig, (result) ->
                 return result if result instanceof Error
-       @send { "delete" : "success" }      
+        return { "deleted" : "success"}
 
+
+
+    @post '/network/dhcp/subnet', validateDhcp, ->
+       console.log 'inside @post /network/dhcp/subnet'
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id
+       config = ''
+       for key, val of @body
+           switch (typeof val)
+               when "number", "string"
+                   config += key + ' ' + val + "\n"
+               when "boolean"
+                   config += key + "\n"
+               when "object"
+                   if val instanceof Array
+                        for i in val
+                            config += "#{key} #{i}\n" if key is "option"
+       console.log config
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+#    @del '/network/dhcp/subnet/:id', ->
+#        console.log "inside @del /network/dhcp/subnet/#{@params.id}"
+#        id = @params.id
+#        optionvalue = ''
+#        result = removeConfig(id, optionvalue)
+#        @send result
+
+    @post '/network/dhcp/router', validateAddress, ->
+       console.log "inside @post /network/dhcp/router"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id  
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option router' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/router/:id', ->
+        console.log "inside @del /network/dhcp/router/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option router '
+        result = removeConfig(id, optionvalue)
+        @send result
+
+    @post '/network/dhcp/timesvr', validateAddress, ->
+       console.log "inside @post /network/dhcp/timesvr"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id         
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option timesvr' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/timesvr/:id', ->
+        console.log "inside @del /network/dhcp/timesvr/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option timesvr '
+        result = removeConfig(id, optionvalue)
+        @send result
+
+    @post '/network/dhcp/namesvr', validateAddress, ->
+       console.log "inside @post /network/dhcp/namesvr"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option namesvr' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/namesvr/:id', ->
+        console.log "inside @del /network/dhcp/namesvr/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option namesvr '
+        result = removeConfig(id, optionvalue)
+        @send result
+
+    @post '/network/dhcp/dns', validateAddress, ->
+       console.log "inside @post /network/dhcp/dns"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option dns' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/dns/:id', ->
+        console.log "inside @del /network/dhcp/dns/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option dns '
+        result = removeConfig(id, optionvalue)
+        @send result
+ 
+    @post '/network/dhcp/logsvr', validateAddress, ->
+       console.log "inside @post /network/dhcp/logsvr"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option logsvr' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/logsvr/:id', ->
+        console.log "inside @del /network/dhcp/logsvr/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option logsvr '
+        result = removeConfig(id, optionvalue)
+        @send result
+ 
+    @post '/network/dhcp/cookiesvr', validateAddress, ->
+       console.log "inside @post /network/dhcp/cookiesvr"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option cookiesvr' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/cookiesvr/:id', ->
+        console.log "inside @del /network/dhcp/cookiesvr/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option cookiesvr '
+        result = removeConfig(id, optionvalue)
+        @send result
+
+    @post '/network/dhcp/lprsvr', validateAddress, ->
+       console.log "inside @post /network/dhcp/lprsvr"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option lprsvr' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/lprsvr/:id', ->
+        console.log "inside @del /network/dhcp/lprsvr/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option lprsvr '
+        result = removeConfig(id, optionvalue)
+        @send result
+
+    @post '/network/dhcp/ntpsrv', validateAddress, ->
+       console.log "inside @post /network/dhcp/ntpsrv"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option ntpsrv' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/ntpsrv/:id', ->
+        console.log "inside @del /network/dhcp/ntpsrv/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option ntpsrv '
+        result = removeConfig(id, optionvalue)
+        @send result
+    
+    @post '/network/dhcp/wins', validateAddress, ->
+       console.log "inside @post /network/dhcp/wins"
+       id = uuid.v4()
+       return @next new Error "Duplicate config ID detected!" if db.dhcp.get id
+       config = ''
+       for key, val of @body.address
+         switch (typeof val)
+           when "string"
+             config += 'option wins' + ' ' + val + "\n"
+       body = @body
+       result = writeConfig(config, id, body)
+       @send result
+
+    @del '/network/dhcp/wins/:id', ->
+        console.log "inside @del /network/dhcp/wins/#{@params.id}"
+        id = @params.id
+        optionvalue = 'option wins '
+        result = removeConfig(id, optionvalue)
+        @send result
+
+    @get '/network/:id/dhcp', loadService, ->
+       @send @request.service
