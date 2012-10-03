@@ -1,4 +1,4 @@
-{@app} = require('zappajs') 5000, ->
+{@app} = require('zappajs') 8080, ->
     @configure =>
       @use 'bodyParser', 'methodOverride', @app.router, 'static'
       @set 'basepath': '/v1.0'
@@ -13,6 +13,7 @@
     @include './lib/personality'
     @include './lib/management'
     @include './lib/network'
+    @include './lib/webproxy'
 
     @get '/test': ->
         @render index: {title: 'cloudflash', layout: no}
