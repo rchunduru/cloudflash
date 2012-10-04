@@ -1,3 +1,4 @@
+
 fs = require 'fs'
 validate = require('json-schema').validate
 cfile = new require './fileops.coffee'
