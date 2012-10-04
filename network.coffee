@@ -6,11 +6,11 @@ path = require 'path'
 dbnwk = 
         main: require('dirty') '/tmp/network.db'
 
-classfile = new require './fileops.coffee'
-cfile = new classfile
-filename = "/etc/network/interfaces.tmp"
 
-#Test schema to validate incoming JSON
+cfile = new require './fileops.coffee'
+filename = "/etc/network/interfaces"
+
+#schema to validate incoming JSON
 nwkschema =
         name: "network"
         type: "object"
@@ -96,14 +96,14 @@ nwkschema =
                
 
     @post '/network/interfaces', validateschemaNwk,  ->
-        #filename = "/etc/network/interfaces.tmp"
+        
         cfile.createFile filename, (result) ->
             return result if result instanceof Error 
              
         config = ''
         config = generateNwkConfig(@body)
         
-        cfile.updateFile config, filename, (result) ->
+        cfile.updateFile filename, config, (result) ->
             return result if result instanceof Error     
               
         writeNwkConfigDb @body, (result) ->
@@ -111,11 +111,53 @@ nwkschema =
         @send {"result":"success"}
 
     @get '/network/interfaces' : ->
-        res = { 'network': [] }
-        dbnwk.main.forEach (key,val) ->
-            console.log 'found ' + key
-            res.network.push key
-        console.log res
+        res = {}              
+        res.static = []        
+        cfile.readFile filename, (result) ->            
+            throw new Error result if result instanceof Error
+                       
+            if result
+              arrStr = result.split "\n\n"
+              for i in arrStr
+                if i.match /static/
+                  
+                  arrStr1 = i.split "\n"
+                  console.log "here...." + i
+                  staticobj = { "device" : "", "inetaddr" : "", "netmask" : "", "gateway" : "" }
+
+                  strDevice = '' 
+                  strIP = ''
+                  strMask = '' 
+                  strGw = ''
+                  for j in arrStr1 
+                      j = j.replace /^\s+|\s+$/g, ""
+                   
+                      strpos = j.indexOf "inet"
+                      if strpos > 0
+                        strDevice = j.substr 0, strpos
+                        strDevice = strDevice.replace /iface/g, ""
+                        strDevice = strDevice.trim()
+                        staticobj.device = strDevice
+                        
+                        console.log "geetha: " + strDevice                       
+                         
+                      if j.match /^address/ 
+                        strIP = j.replace /address/g, ""
+                        strIP = strIP.trim()
+                        staticobj.inetaddr = strIP
+                      else if j.match /^netmask/ 
+                        strMask = j.replace /netmask/g, ""
+                        strMask = strMask.trim()
+                        staticobj.netmask = strMask
+                      else if j.match /^gateway/ 
+                        strGw = j.replace /gateway/g, ""
+                        strGw = strGw.trim()
+                        staticobj.gateway = strGw 
+                        
+                  res.static.push staticobj                                                                 
+            else
+                return @next new Error " Invalid file"  
+                    
         @send res
 
     @get "/network/interfaces/:ifid" : ->
@@ -129,10 +171,9 @@ nwkschema =
                arrStr = stdout.split "\n"
                for i in arrStr
                  if i.match /RX bytes/ or /TX bytes/
-                   arrStrSplt = i.split "  "
+                   arrStrSplt = i.split "  "                                     
                    for j in arrStrSplt                     
-                     arrStrsplt1 = j.split "("
-                     
+                     arrStrsplt1 = j.split "("                     
                      if arrStrsplt1[0].match /RX bytes:/
                        strRx = arrStrsplt1[0]
                        strRx = strRx.replace /^\s+|\s+$/g, ""
@@ -169,7 +210,7 @@ nwkschema =
              
             console.log "config: " + config 
             #filename = "/etc/network/interfaces.tmp"       
-            cfile.updateFile config, filename, (result) ->
+            cfile.updateFile filename,config, (result) ->
               return result if result instanceof Error         
           @send {"result":"success"} 
         else            
