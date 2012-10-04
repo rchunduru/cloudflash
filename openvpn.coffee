@@ -14,18 +14,17 @@ cfile = new require './fileops.coffee'
             return @next result
 
     @post '/services/:id/openvpn/client', loadService, ->
-        vpn = new vpnlib @request, @send, @params, @body, @next        
+        vpn = new vpnlib @request, @send, @params, @body, @next
         result = vpn.validateOpenvpnClient()
         if result instanceof Error
             return @next result
         else
             console.log 'schema is good'
-            vpn.configClient "/config/openvpn/client.conf", (res) ->
+            vpn.configClient (res) ->
                 vpn.send res
 
     @post '/services/:id/openvpn/server', loadService, ->
         vpn = new vpnlib @request, @send, @params, @body, @next
-        filename = '/config/openvpn/server.conf'
         result = vpn.validateOpenvpnServer()
         if result instanceof Error
             return @next result
