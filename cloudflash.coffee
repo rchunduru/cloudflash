@@ -14,6 +14,7 @@
     @include './lib/management'
     @include './lib/network'
     @include './lib/webproxy'
+    @include './lib/dhcp'
 
     @get '/test': ->
         @render index: {title: 'cloudflash', layout: no}
@@ -45,7 +46,7 @@
           $('#panel').append "<p>#{@data} and #{@text}</p>"
 
         $ =>
-#          @emit 'set nickname': {nickname: prompt 'Pick a nickname!'}
+# @emit 'set nickname': {nickname: prompt 'Pick a nickname!'}
 
           $('#box').focus()
 
@@ -71,7 +72,7 @@
                     data = { 'personality': [ $form.serializeFormJSON() ] }
 
             json = JSON.stringify(data) if data
-#            alert 'about to issue POST to: '+url+' with: '+json
+# alert 'about to issue POST to: '+url+' with: '+json
 
             $.ajax
                 type: type
@@ -99,10 +100,10 @@
           $('#box').focus()
 
           $('button').click (e) =>
-             json =  $("#configdata").val()
+             json = $("#configdata").val()
              id = $("#id").val()
              unless id is " " and id is "undefined"
-             	 $.ajax
+              $.ajax
                   type: "POST"
                   url: '/services/'+id+'/openvpn'
                   data: json
@@ -124,11 +125,11 @@
           $('#box').focus()
 
           $('button').click (e) =>
-             json =  $("#configdata").val()
+             json = $("#configdata").val()
              id = $("#id").val()
 
              unless id is " " and id is "undefined"
-             	 $.ajax
+              $.ajax
                   type: "POST"
                   url: '/services/'+id+'/firewall'
                   data: json
@@ -219,11 +220,11 @@
                             name: 'contents'
                             value: ''
                     # p ->
-                    #     span 'Postxfer: '
-                    #     input '#postxfer'
-                    #         type: 'text'
-                    #         name: 'postxfer'
-                    #         value: ''
+                    # span 'Postxfer: '
+                    # input '#postxfer'
+                    # type: 'text'
+                    # name: 'postxfer'
+                    # value: ''
                     button 'Send'
 
      @view openvpn: ->
@@ -305,4 +306,7 @@
                           value: ''
 
                 button 'Send'
+
+
+
 
