@@ -5,10 +5,10 @@
             serverpath += "/#{key}"
         #Fetch the destination using openvpn get userslist from the management tunnel
         #based on the commonname in the request
-        console.log zappaparams
+        console.log 'zappa parameters rcvd ' + zappaparams
         console.log 'server path is ' + serverpath
         serverurl = 'http://127.0.0.1:5000' + "#{serverpath}"
-        console.log serverpath
+        console.log 'serverpath is ' + serverpath
         client = require './webclient'
         client.fetchResponse serverurl, method , zappabody, (statusCode, respString) ->
             console.log 'webproxy got response'
@@ -23,17 +23,19 @@
             if statusCode == 200
                 zappasend respString
             else
-                zappasend statusCode, respString
+                zappasend respString, statusCode
 
     @del '/webproxy/:id/*' : ->
         zappasend = @send
         zappanext = @next
         handleProxyRequest @params, @body, "DELETE", (statusCode, respString) ->
             console.log 'about to send response'
+            console.log statusCode
+            console.log respString
             if statusCode == 200
                 zappasend respString
             else
-                zappasend statusCode, respString
+                zappasend respString, statusCode
 
     @post '/webproxy/:id/*' : ->
         zappasend = @send
@@ -43,7 +45,7 @@
             if statusCode == 200
                 zappasend respString
             else
-                zappasend statusCode, respString
+                zappasend respString, statusCode
         
 
     @put '/webproxy/:id/*' : ->
@@ -54,7 +56,7 @@
             if statusCode == 200
                 zappasend respString
             else
-                zappasend statusCode, respString
+                zappasend respString, statusCode
         
 
 
