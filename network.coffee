@@ -6,7 +6,6 @@ path = require 'path'
 dbnwk = 
         main: require('dirty') '/tmp/network.db'
 
-
 cfile = new require './fileops.coffee'
 filename = "/etc/network/interfaces"
 
@@ -64,7 +63,7 @@ nwkschema =
                                      config += "\t#{k} #{j} \n"                                 
                                 else                                  
                                   config += loopthrow(j,k,devName)                                                
-                        
+                              config += "\n\n"
                 when "number", "string"
                     config += "#{key} #{val} \n"
                 when "boolean"
